@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>College Placement Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #4f46e5;
+            margin-bottom: 10px;
+        }
+
+        .stat-label {
+            color: #6b7280;
+            font-weight: 500;
+        }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .chart-title {
+            font-size: 1.3rem;
+            font-weight: bold;
+            color: #374151;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .table-container {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+
+        .search-box {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-size: 1rem;
+            margin-bottom: 20px;
+            outline: none;
+            transition: border-color 0.3s ease;
+        }
+
+        .search-box:focus {
+            border-color: #4f46e5;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+        }
+
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        th {
+            background-color: #f9fafb;
+            font-weight: 600;
+            color: #374151;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        th:hover {
+            background-color: #f3f4f6;
+        }
+
+        .offer-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            text-transform: uppercase;
+        }
+
+        .super-dream {
+            background-color: #fef3c7;
+            color: #92400e;
+        }
+
+        .dream {
+            background-color: #dbeafe;
+            color: #1e40af;
+        }
+
+        .regular {
+            background-color: #f3e8ff;
+            color: #7c3aed;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 1.2rem;
+            padding: 50px;
+        }
+
+        @media (max-width: 768px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .chart-container {
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎓 College Placement Dashboard</h1>
+            <p>Interactive analysis of campus recruitment data</p>
+        </div>
+
+        <div id="loading" class="loading">
+            Loading placement data...
+        </div>
+
+        <div id="dashboard" style="display: none;">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-number" id="totalCompanies">0</div>
+                    <div class="stat-label">Companies</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="totalStudents">0</div>
+                    <div class="stat-label">Students Placed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="avgCTC">0</div>
+                    <div class="stat-label">Avg CTC (LPA)</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-number" id="topCTC">0</div>
+                    <div class="stat-label">Highest CTC (LPA)</div>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-title">CTC Distribution by Offer Type</div>
+                    <canvas id="ctcChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">Students Hired by Offer Type</div>
+                    <canvas id="studentsChart"></canvas>
+                </div>
+            </div>
+
+            <div class="charts-grid">
+                <div class="chart-container">
+                    <div class="chart-title">Top 10 Companies by CTC Package</div>
+                    <canvas id="topCompaniesChart"></canvas>
+                </div>
+                <div class="chart-container">
+                    <div class="chart-title">Top 10 Companies by Students Hired</div>
+                    <canvas id="hiringChart"></canvas>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="chart-title">Company Details</div>
+                <input type="text" class="search-box" id="searchBox" placeholder="Search companies...">
+                <table>
+                    <thead>
+                        <tr>
+                            <th onclick="sortTable(0)">Company Name</th>
+                            <th onclick="sortTable(1)">Students Hired</th>
+                            <th onclick="sortTable(2)">CTC Package (LPA)</th>
+                            <th onclick="sortTable(3)">Offer Type</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let placementData = [];
+        let filteredData = [];
+
+        // CSV data embedded directly in the app
+        const csvData = `Company Name,Students Hired (Approx),CTC Package (INR LPA),Offer Type
+Microsoft,7,44.0,Super Dream
+WorkIndia,5,40.0,Super Dream
+AppDynamics,2,39.2,Super Dream
+D. E. Shaw,3,35.2,Super Dream
+Udaan,4,35.0,Super Dream
+Amazon,15,29.5,Super Dream
+Cisco,8,29.17,Super Dream
+Swiggy,6,28.2,Super Dream
+Morgan Stanley,8,25.33,Super Dream
+Google,5,25.0,Super Dream
+PayPal,6,23.8,Super Dream
+Cloudera,3,18.0,Super Dream
+JP Morgan,7,15.0,Super Dream
+Intel,10,12.0,Dream
+HSBC,10,12.0,Dream
+PwC,6,12.0,Dream
+Standard Chartered,2,10.0,Dream
+Dell,12,10.0,Dream
+TCS (Prime),3,9.0,Super Dream
+IBM,15,8.0,Dream
+Accenture,25,7.8,Dream
+Deloitte,20,7.6,Dream
+Hero,8,7.0,Dream
+TCS (Digital),42,7.0,Dream
+HP,12,6.5,Dream
+Nokia,5,6.0,Dream
+Wipro,30,4.5,Regular
+Cognizant,50,4.2,Regular
+Infosys,40,4.1,Regular
+TCS (Ninja),78,3.3,Regular`;
+
+        function initializeApp() {
+            // Parse CSV data
+            Papa.parse(csvData, {
+                header: true,
+                skipEmptyLines: true,
+                complete: function(results) {
+                    placementData = results.data.map(row => ({
+                        company: row['Company Name'],
+                        students: parseInt(row['Students Hired (Approx)']),
+                        ctc: parseFloat(row['CTC Package (INR LPA)']),
+                        offerType: row['Offer Type']
+                    }));
+                    
+                    filteredData = [...placementData];
+                    setupDashboard();
+                }
+            });
+        }
+
+        function setupDashboard() {
+            updateStats();
+            createCharts();
+            populateTable();
+            setupSearch();
+            
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('dashboard').style.display = 'block';
+        }
+
+        function updateStats() {
+            const totalCompanies = placementData.length;
+            const totalStudents = placementData.reduce((sum, company) => sum + company.students, 0);
+            const avgCTC = (placementData.reduce((sum, company) => sum + company.ctc, 0) / totalCompanies).toFixed(1);
+            const topCTC = Math.max(...placementData.map(company => company.ctc));
+
+            document.getElementById('totalCompanies').textContent = totalCompanies;
+            document.getElementById('totalStudents').textContent = totalStudents;
+            document.getElementById('avgCTC').textContent = avgCTC;
+            document.getElementById('topCTC').textContent = topCTC;
+        }
+
+        function createCharts() {
+            createCTCChart();
+            createStudentsChart();
+            createTopCompaniesChart();
+            createHiringChart();
+        }
+
+        function createCTCChart() {
+            const ctx = document.getElementById('ctcChart').getContext('2d');
+            const offerTypes = [...new Set(placementData.map(company => company.offerType))];
+            const avgCTCByType = offerTypes.map(type => {
+                const companies = placementData.filter(company => company.offerType === type);
+                return companies.reduce((sum, company) => sum + company.ctc, 0) / companies.length;
+            });
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: offerTypes,
+                    datasets: [{
+                        label: 'Average CTC (LPA)',
+                        data: avgCTCByType,
+                        backgroundColor: ['#4f46e5', '#06b6d4', '#8b5cf6'],
+                        borderRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'CTC (LPA)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createStudentsChart() {
+            const ctx = document.getElementById('studentsChart').getContext('2d');
+            const offerTypes = [...new Set(placementData.map(company => company.offerType))];
+            const studentsByType = offerTypes.map(type => {
+                return placementData.filter(company => company.offerType === type)
+                    .reduce((sum, company) => sum + company.students, 0);
+            });
+
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: offerTypes,
+                    datasets: [{
+                        data: studentsByType,
+                        backgroundColor: ['#4f46e5', '#06b6d4', '#8b5cf6']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        function createTopCompaniesChart() {
+            const ctx = document.getElementById('topCompaniesChart').getContext('2d');
+            const sortedByCTC = [...placementData].sort((a, b) => b.ctc - a.ctc).slice(0, 10);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedByCTC.map(company => company.company),
+                    datasets: [{
+                        label: 'CTC (LPA)',
+                        data: sortedByCTC.map(company => company.ctc),
+                        backgroundColor: '#10b981',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'CTC (LPA)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createHiringChart() {
+            const ctx = document.getElementById('hiringChart').getContext('2d');
+            const sortedByHiring = [...placementData].sort((a, b) => b.students - a.students).slice(0, 10);
+
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedByHiring.map(company => company.company),
+                    datasets: [{
+                        label: 'Students Hired',
+                        data: sortedByHiring.map(company => company.students),
+                        backgroundColor: '#f59e0b',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Students Hired'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function populateTable() {
+            const tableBody = document.getElementById('tableBody');
+            tableBody.innerHTML = '';
+
+            filteredData.forEach(company => {
+                const row = document.createElement('tr');
+                const offerClass = company.offerType.toLowerCase().replace(' ', '-');
+                
+                row.innerHTML = `
+                    <td>${company.company}</td>
+                    <td>${company.students}</td>
+                    <td>₹${company.ctc}</td>
+                    <td><span class="offer-badge ${offerClass}">${company.offerType}</span></td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        function setupSearch() {
+            const searchBox = document.getElementById('searchBox');
+            searchBox.addEventListener('input', function() {
+                const searchTerm = this.value.toLowerCase();
+                filteredData = placementData.filter(company => 
+                    company.company.toLowerCase().includes(searchTerm) ||
+                    company.offerType.toLowerCase().includes(searchTerm)
+                );
+                populateTable();
+            });
+        }
+
+        function sortTable(columnIndex) {
+            const sortKey = ['company', 'students', 'ctc', 'offerType'][columnIndex];
+            
+            filteredData.sort((a, b) => {
+                if (typeof a[sortKey] === 'string') {
+                    return a[sortKey].localeCompare(b[sortKey]);
+                } else {
+                    return b[sortKey] - a[sortKey];
+                }
+            });
+            
+            populateTable();
+        }
+
+        // Initialize the app when page loads
+        document.addEventListener('DOMContentLoaded', initializeApp);
+    </script>
+</body>
+</html>
